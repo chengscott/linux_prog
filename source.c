@@ -3,7 +3,6 @@
 #include <string.h>
 #include "builtin.h"
 
-int EUID, EGID;
 int arg_parse(int, char **);
 void shell();
 int shell_exec(char *);
@@ -20,9 +19,9 @@ int main(int argc, char **argv) {
 
 int arg_parse(int argc, char **argv) {
   if (argc == 3) {
-    // Q: shoud throw parsing error?
-    EUID = atoi(argv[1]);
-    EGID = atoi(argv[2]);
+    int EUID = atoi(argv[1]);
+    int EGID = atoi(argv[2]);
+    // TBA change euid egid
     return 0;
   }
   fprintf(stderr, "Usage: %s {UID} {GID}\n", argv[0]);
@@ -35,9 +34,7 @@ void shell() {
   int eof = 0;
   do {
     printf("~> ");
-    // Q: Can it be killed by C-c?
-    eof = getline(&cmd, &len, stdin);
-    if (eof != -1) eof = shell_exec(cmd);
+    if ((eof = getline(&cmd, &len, stdin)) != -1) eof = shell_exec(cmd);
     // cleanup
     free(cmd);
     cmd = NULL;

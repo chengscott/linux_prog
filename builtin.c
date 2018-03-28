@@ -6,24 +6,60 @@
 #include <unistd.h>
 #define N 1024
 
-int builtin_cat(char *cmd) { return 0; }
+int builtin_cat(char *line) {
+  char arg[N], extra[N];
+  if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
+
+  FILE *file = fopen(arg, "r");
+  // if (file == NULL)
+  char *content = NULL;
+  size_t len = 0;
+  while (getline(&content, &len, file) != -1) {
+    printf("%s", content);
+    free(content);
+  }
+  fclose(file);
+  return 0;
+}
 
 int builtin_cd(char *line) {
-  char cmd[N], arg[N], extra[N];
-  if (sscanf(line, "%s %s %s", cmd, arg, extra) != 2) return -1;
+  char arg[N], extra[N];
+  if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
   int ret = chdir(arg);
   // if (ret == -1)
   return 0;
 }
 
-int builtin_chmod(char *cmd) { return 0; }
+int builtin_chmod(char *line) {
+  char arg[N], extra[N];
+  int mode;
+  if (sscanf(line, "%*s %o %s %s", &mode, arg, extra) != 2) return -1;
 
-int builtin_echo(char *cmd) { return 0; }
+  int ret = chmod(arg, mode);
+  // if (ret == -1)
+  return 0;
+}
+
+int builtin_echo(char *line) {
+  char arg[N], filename[N], extra[N];
+  int argc;
+  if ((argc = sscanf(line, "%*s %s %s %s", arg, filename, extra)) > 2)
+    return -1;
+
+  if (argc == 2) {
+    FILE *file = fopen(filename, "a+");
+    // if (file == NULL)
+    fprintf(file, "%s", arg);
+    fclose(file);
+  } else
+    printf("%s\n", arg);
+  return 0;
+}
 
 int builtin_exit(char *line) {
-  char cmd[N], extra[N];
-  if (sscanf(line, "%s %s", cmd, extra) != 1) return -1;
+  char extra[N];
+  if (sscanf(line, "%*s %s", extra) > 0) return -1;
 
   return 1;
 }
@@ -31,8 +67,8 @@ int builtin_exit(char *line) {
 int builtin_find(char *cmd) { return 0; }
 
 int builtin_help(char *line) {
-  char cmd[N], extra[N];
-  if (sscanf(line, "%s %s", cmd, extra) != 1) return -1;
+  char extra[N];
+  if (sscanf(line, "%*s %s", extra) > 0) return -1;
 
   const char *help_string[] = {
       "cat {file}:              Display content of {file}.",
@@ -67,16 +103,16 @@ int builtin_help(char *line) {
 }
 
 int builtin_id(char *line) {
-  char cmd[N], extra[N];
-  if (sscanf(line, "%s %s", cmd, extra) != 1) return -1;
+  char extra[N];
+  if (sscanf(line, "%*s %s", extra) > 0) return -1;
 
   printf("uid=%d gid=%d\n", geteuid(), getegid());
   return 0;
 }
 
 int builtin_mkdir(char *line) {
-  char cmd[N], arg[N], extra[N];
-  if (sscanf(line, "%s %s %s", cmd, arg, extra) != 2) return -1;
+  char arg[N], extra[N];
+  if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
   int ret = mkdir(arg, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
   // if (ret == -1)
@@ -84,8 +120,8 @@ int builtin_mkdir(char *line) {
 }
 
 int builtin_pwd(char *line) {
-  char cmd[N], extra[N];
-  if (sscanf(line, "%s %s", cmd, extra) != 1) return -1;
+  char extra[N];
+  if (sscanf(line, "%*s %s", extra) > 0) return -1;
 
   char name[N];
   getcwd(name, N);
@@ -95,8 +131,8 @@ int builtin_pwd(char *line) {
 }
 
 int builtin_rm(char *line) {
-  char cmd[N], arg[N], extra[N];
-  if (sscanf(line, "%s %s %s", cmd, arg, extra) != 2) return -1;
+  char arg[N], extra[N];
+  if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
   int ret = remove(arg);
   // if (ret == -1)
@@ -104,8 +140,8 @@ int builtin_rm(char *line) {
 }
 
 int builtin_rmdir(char *line) {
-  char cmd[N], arg[N], extra[N];
-  if (sscanf(line, "%s %s %s", cmd, arg, extra) != 2) return -1;
+  char arg[N], extra[N];
+  if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
   int ret = rmdir(arg);
   // if (ret == -1)
@@ -115,8 +151,8 @@ int builtin_rmdir(char *line) {
 int builtin_stat(char *cmd) { return 0; }
 
 int builtin_touch(char *line) {
-  char cmd[N], arg[N], extra[N];
-  if (sscanf(line, "%s %s %s", cmd, arg, extra) != 2) return -1;
+  char arg[N], extra[N];
+  if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
   FILE *file;
   // if (access(arg, F_OK) != -1)
@@ -125,4 +161,11 @@ int builtin_touch(char *line) {
   return 0;
 }
 
-int builtin_unmask(char *cmd) { return 0; }
+int builtin_unmask(char *line) {
+  char extra[N];
+  int mode;
+  if (sscanf(line, "%*s %o %s", &mode, extra) != 1) return -1;
+
+  umask(mode);
+  return 0;
+}
