@@ -40,9 +40,15 @@ const char *help_string[] = {
     "timestamp.",
     "umask {mode}:            Change the umask of the current session."};
 
+int error_handler() {
+  fprintf(stderr, "Error: %s\n", strerror(errno));
+  return 0;
+}
+
 int set_euid_egid(int euid, int egid) {
-  if (setegid(egid) == -1) return -1;
-  return seteuid(euid);
+  if (setegid(egid) == -1) return error_handler() - 1;
+  if (seteuid(euid) == -1) return error_handler() - 1;
+  return 0;
 }
 
 const char *get_file_type(int mode) {
@@ -70,7 +76,7 @@ int builtin_cat(char *line) {
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
   FILE *file = fopen(arg, "r");
-  // if (file == NULL)
+  if (file == NULL) return error_handler();
   char *content = NULL;
   size_t len = 0;
   while (getline(&content, &len, file) != -1) {
@@ -85,8 +91,7 @@ int builtin_cd(char *line) {
   char arg[N], extra[N];
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
-  int ret = chdir(arg);
-  // if (ret == -1)
+  if (chdir(arg) == -1) return error_handler();
   return 0;
 }
 
@@ -95,8 +100,7 @@ int builtin_chmod(char *line) {
   int mode;
   if (sscanf(line, "%*s %o %s %s", &mode, arg, extra) != 2) return -1;
 
-  int ret = chmod(arg, mode);
-  // if (ret == -1)
+  if (chmod(arg, mode) == -1) return error_handler();
   return 0;
 }
 
@@ -108,7 +112,7 @@ int builtin_echo(char *line) {
 
   if (argc == 2) {
     FILE *file = fopen(filename, "a+");
-    // if (file == NULL)
+    if (file == NULL) return error_handler();
     fprintf(file, "%s", arg);
     fclose(file);
   } else
@@ -129,13 +133,16 @@ int builtin_find(char *line) {
   if ((argc = sscanf(line, "%*s %s %s", arg, extra)) > 1) return -1;
 
   DIR *dir = opendir(argc == 1 ? arg : ".");
+  if (dir == NULL) return error_handler();
   struct dirent *dp;
   struct stat info;
-  int ret;
   while ((dp = readdir(dir)) != NULL) {
     printf("%-20s", dp->d_name);
-    ret = stat(dp->d_name, &info);
-    // if (ret == -1) { ; continue; }
+    if (stat(dp->d_name, &info) == -1) {
+      printf("\n");
+      error_handler();
+      continue;
+    }
     printf("\t%-20s\t%-5ld\n", get_file_type(info.st_mode & S_IFMT),
            info.st_size);
   }
@@ -164,8 +171,8 @@ int builtin_mkdir(char *line) {
   char arg[N], extra[N];
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
-  int ret = mkdir(arg, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-  // if (ret == -1)
+  if (mkdir(arg, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
+    return error_handler();
   return 0;
 }
 
@@ -175,7 +182,7 @@ int builtin_pwd(char *line) {
 
   char name[N];
   getcwd(name, N);
-  // if (name == NULL)
+  if (name == NULL) return error_handler();
   printf("%s\n", name);
   return 0;
 }
@@ -184,8 +191,7 @@ int builtin_rm(char *line) {
   char arg[N], extra[N];
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
-  int ret = remove(arg);
-  // if (ret == -1)
+  if (remove(arg) == -1) return error_handler();
   return 0;
 }
 
@@ -193,8 +199,7 @@ int builtin_rmdir(char *line) {
   char arg[N], extra[N];
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
-  int ret = rmdir(arg);
-  // if (ret == -1)
+  if (rmdir(arg) == -1) return error_handler();
   return 0;
 }
 
@@ -203,8 +208,7 @@ int builtin_stat(char *line) {
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
   struct stat info;
-  int ret = stat(arg, &info);
-  // if (ret == -1)
+  if (stat(arg, &info) == -1) return error_handler();
   char atime[N], mtime[N], ctime[N];
   strftime(atime, N, "%F %T %z", localtime(&info.st_atime));
   strftime(mtime, N, "%F %T %z", localtime(&info.st_mtime));
@@ -214,13 +218,13 @@ int builtin_stat(char *line) {
   File: %s\n\
   Size: %ld               Blocks: %ld          IO Block: %ld   %s\n\
 Device: %lxh/%lud      Inode: %ld   Links: %lu\n\
-Access: (%u)  Uid: (%5u)   Gid: (%5u)\n\
+Access: (%04o)  Uid: (%5u)   Gid: (%5u)\n\
 Access: %s\n\
 Modify: %s\n\
 Change: %s\n",
       arg, info.st_size, info.st_blocks, info.st_blksize,
       get_file_type(info.st_mode & S_IFMT), info.st_dev, info.st_dev,
-      info.st_ino, info.st_nlink, info.st_mode & 0777, info.st_uid, info.st_gid,
+      info.st_ino, info.st_nlink, info.st_mode & 07777, info.st_uid, info.st_gid,
       atime, mtime, ctime);
   return 0;
 }
@@ -230,9 +234,9 @@ int builtin_touch(char *line) {
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
   int fd = open(arg, O_WRONLY | O_CREAT | O_NOCTTY | O_NONBLOCK, 0666);
-  // if (fd < 0)
+  if (fd < 0) return error_handler();
   int rc = utimensat(AT_FDCWD, arg, NULL, 0);
-  // if (rc)
+  if (rc) return error_handler();
   return 0;
 }
 

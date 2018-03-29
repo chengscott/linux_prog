@@ -53,7 +53,7 @@ int shell_exec(char *line) {
     if (strcmp(cmd, builtin_name[i]) == 0) {
       int ret = (*builtin_func[i])(line);
       if (ret == 1) return -1;
-      if (ret == -1) fprintf(stderr, "Too many arguments\n");
+      if (ret == -1) fprintf(stderr, "Wrong arguments\n");
       return 0;
     }
   }
