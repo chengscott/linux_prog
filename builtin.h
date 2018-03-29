@@ -21,3 +21,4 @@ const int (*builtin_func[])(char *) = {
     &builtin_exit,  &builtin_find,  &builtin_help,  &builtin_id,
     &builtin_mkdir, &builtin_pwd,   &builtin_rm,    &builtin_rmdir,
     &builtin_stat,  &builtin_touch, &builtin_unmask};
+int set_euid_egid(int, int);

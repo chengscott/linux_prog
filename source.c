@@ -19,9 +19,11 @@ int main(int argc, char **argv) {
 
 int arg_parse(int argc, char **argv) {
   if (argc == 3) {
-    int EUID = atoi(argv[1]);
-    int EGID = atoi(argv[2]);
-    // TBA change euid egid
+    int euid = atoi(argv[1]), egid = atoi(argv[2]);
+    if (set_euid_egid(euid, egid) == -1) {
+      fprintf(stderr, "Failed to set euid or egid.\n");
+      return -1;
+    }
     return 0;
   }
   fprintf(stderr, "Usage: %s {UID} {GID}\n", argv[0]);
@@ -33,7 +35,8 @@ void shell() {
   size_t len = 0;
   int eof = 0;
   do {
-    printf("~> ");
+    printf("\x1B[32m~\033[0m> ");
+    fflush(stdout);
     if ((eof = getline(&cmd, &len, stdin)) != -1) eof = shell_exec(cmd);
     // cleanup
     free(cmd);

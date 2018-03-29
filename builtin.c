@@ -1,4 +1,5 @@
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,6 +39,11 @@ const char *help_string[] = {
     "                         or update its access and modification "
     "timestamp.",
     "umask {mode}:            Change the umask of the current session."};
+
+int set_euid_egid(int euid, int egid) {
+  if (setegid(egid) == -1) return -1;
+  return seteuid(euid);
+}
 
 const char *get_file_type(int mode) {
   const char *file_type[] = {"named pipe (fifo)",
@@ -199,20 +205,23 @@ int builtin_stat(char *line) {
   struct stat info;
   int ret = stat(arg, &info);
   // if (ret == -1)
+  char atime[N], mtime[N], ctime[N];
+  strftime(atime, N, "%F %T %z", localtime(&info.st_atime));
+  strftime(mtime, N, "%F %T %z", localtime(&info.st_mtime));
+  strftime(ctime, N, "%F %T %z", localtime(&info.st_ctime));
   printf(
       "\
   File: %s\n\
-  Size: %lld               Blocks: %lld          IO Block: %ld   %s\n\
-Device: %s      Inode: %ld   Links: %d\n\
-Access: (%lo)  Uid: (%ld)   Gid: (%ld)\n\
-Access: %s\
-Modify: %s\
-Change: %s",
+  Size: %ld               Blocks: %ld          IO Block: %ld   %s\n\
+Device: %lxh/%lud      Inode: %ld   Links: %lu\n\
+Access: (%u)  Uid: (%5u)   Gid: (%5u)\n\
+Access: %s\n\
+Modify: %s\n\
+Change: %s\n",
       arg, info.st_size, info.st_blocks, info.st_blksize,
-      get_file_type(info.st_mode & S_IFMT),
-      "",  // info.st_dev,
+      get_file_type(info.st_mode & S_IFMT), info.st_dev, info.st_dev,
       info.st_ino, info.st_nlink, info.st_mode & 0777, info.st_uid, info.st_gid,
-      ctime(&info.st_atime), ctime(&info.st_mtime), ctime(&info.st_ctime));
+      atime, mtime, ctime);
   return 0;
 }
 

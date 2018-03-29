@@ -1,8 +1,8 @@
 CC=gcc
-CFLAGS=-g
+CFLAGS=-O3 -Wall -static
 
 source: source.c builtin.c
-	cc ${CFLAGS} source.c builtin.c -o source
+	cc ${CFLAGS} source.c builtin.c -o hw1
 
 .PHONY: format
 format:
@@ -10,4 +10,4 @@ format:
 
 .PHONY: clean
 clean:
-	rm -f source
+	rm -f hw1
