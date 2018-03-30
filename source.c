@@ -4,16 +4,19 @@
 #include "builtin.h"
 
 int arg_parse(int, char **);
-void shell();
 int shell_exec(char *);
 
 int main(int argc, char **argv) {
-  if (arg_parse(argc, argv) == -1) {
-    return EXIT_FAILURE;
-  }
+  if (arg_parse(argc, argv) == -1) return EXIT_FAILURE;
 
-  shell();
-
+  char *cmd = NULL;
+  size_t len = 0;
+  do {
+    printf("\x1B[32m~\033[0m> ");
+    fflush(stdout);
+    if (getline(&cmd, &len, stdin) == -1) break;
+  } while (shell_exec(cmd) != -1);
+  free(cmd);
   return EXIT_SUCCESS;
 }
 
@@ -28,21 +31,6 @@ int arg_parse(int argc, char **argv) {
   }
   fprintf(stderr, "Usage: %s {UID} {GID}\n", argv[0]);
   return -1;
-}
-
-void shell() {
-  char *cmd = NULL;
-  size_t len = 0;
-  int eof = 0;
-  do {
-    printf("\x1B[32m~\033[0m> ");
-    fflush(stdout);
-    if ((eof = getline(&cmd, &len, stdin)) != -1) eof = shell_exec(cmd);
-    // cleanup
-    free(cmd);
-    cmd = NULL;
-    len = 0;
-  } while (eof != -1);
 }
 
 int shell_exec(char *line) {

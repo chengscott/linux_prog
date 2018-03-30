@@ -75,14 +75,18 @@ int builtin_cat(char *line) {
   char arg[N], extra[N];
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
+  struct stat info;
+  if (stat(arg, &info) == -1) return error_handler();
+  if (!S_ISREG(info.st_mode)) {
+    fprintf(stderr, "Error: Is a %s\n", get_file_type(info.st_mode & S_IFMT));
+    return 0;
+  }
   FILE *file = fopen(arg, "r");
   if (file == NULL) return error_handler();
   char *content = NULL;
   size_t len = 0;
-  while (getline(&content, &len, file) != -1) {
-    printf("%s", content);
-    free(content);
-  }
+  while (getline(&content, &len, file) != -1) printf("%s", content);
+  free(content);
   fclose(file);
   return 0;
 }
@@ -191,6 +195,12 @@ int builtin_rm(char *line) {
   char arg[N], extra[N];
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
+  struct stat info;
+  if (stat(arg, &info) == -1) return error_handler();
+  if (!S_ISREG(info.st_mode)) {
+    fprintf(stderr, "Error: Is a %s\n", get_file_type(info.st_mode & S_IFMT));
+    return 0;
+  }
   if (remove(arg) == -1) return error_handler();
   return 0;
 }
@@ -224,8 +234,8 @@ Modify: %s\n\
 Change: %s\n",
       arg, info.st_size, info.st_blocks, info.st_blksize,
       get_file_type(info.st_mode & S_IFMT), info.st_dev, info.st_dev,
-      info.st_ino, info.st_nlink, info.st_mode & 07777, info.st_uid, info.st_gid,
-      atime, mtime, ctime);
+      info.st_ino, info.st_nlink, info.st_mode & 07777, info.st_uid,
+      info.st_gid, atime, mtime, ctime);
   return 0;
 }
 
