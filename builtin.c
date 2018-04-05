@@ -46,8 +46,10 @@ int error_handler() {
 }
 
 int set_euid_egid(int euid, int egid) {
-  if (setegid(egid) == -1) return error_handler() - 1;
-  if (seteuid(euid) == -1) return error_handler() - 1;
+  if (setegid(egid) == -1 || seteuid(euid) == -1) {
+    error_handler();
+    return -1;
+  }
   return 0;
 }
 
@@ -117,7 +119,7 @@ int builtin_echo(char *line) {
   if (argc == 2) {
     FILE *file = fopen(filename, "a+");
     if (file == NULL) return error_handler();
-    fprintf(file, "%s", arg);
+    fprintf(file, "%s\n", arg);
     fclose(file);
   } else
     printf("%s\n", arg);
@@ -136,19 +138,22 @@ int builtin_find(char *line) {
   int argc;
   if ((argc = sscanf(line, "%*s %s %s", arg, extra)) > 1) return -1;
 
-  DIR *dir = opendir(argc == 1 ? arg : ".");
+  const char *path = argc == 1 ? arg : ".";
+  DIR *dir = opendir(path);
   if (dir == NULL) return error_handler();
   struct dirent *dp;
   struct stat info;
+  char filename[N];
   while ((dp = readdir(dir)) != NULL) {
-    printf("%-20s", dp->d_name);
-    if (stat(dp->d_name, &info) == -1) {
+    sprintf(filename, "%s/%s", path, dp->d_name);
+    printf("%-20s\t%-20s", dp->d_name,
+           get_file_type(DTTOIF(dp->d_type) & S_IFMT));
+    if (stat(filename, &info) == -1) {
       printf("\n");
       error_handler();
       continue;
     }
-    printf("\t%-20s\t%-5ld\n", get_file_type(info.st_mode & S_IFMT),
-           info.st_size);
+    printf("\t%-5ld\n", info.st_size);
   }
   closedir(dir);
   return 0;
@@ -243,10 +248,9 @@ int builtin_touch(char *line) {
   char arg[N], extra[N];
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
-  int fd = open(arg, O_WRONLY | O_CREAT | O_NOCTTY | O_NONBLOCK, 0666);
-  if (fd < 0) return error_handler();
-  int rc = utimensat(AT_FDCWD, arg, NULL, 0);
-  if (rc) return error_handler();
+  if (open(arg, O_WRONLY | O_CREAT | O_NOCTTY | O_NONBLOCK, 0666) == -1 ||
+      utimensat(AT_FDCWD, arg, NULL, 0) == -1)
+    return error_handler();
   return 0;
 }
 
