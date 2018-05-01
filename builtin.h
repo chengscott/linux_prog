@@ -15,7 +15,7 @@ int builtin_touch(char *);
 int builtin_unmask(char *);
 const char *builtin_name[] = {"cat",  "cd",    "chmod", "echo",  "exit",
                               "find", "help",  "id",    "mkdir", "pwd",
-                              "rm",   "rmdir", "stat",  "touch", "unmask"};
+                              "rm",   "rmdir", "stat",  "touch", "umask"};
 const int (*builtin_func[])(char *) = {
     &builtin_cat,   &builtin_cd,    &builtin_chmod, &builtin_echo,
     &builtin_exit,  &builtin_find,  &builtin_help,  &builtin_id,

@@ -180,7 +180,7 @@ int builtin_mkdir(char *line) {
   char arg[N], extra[N];
   if (sscanf(line, "%*s %s %s", arg, extra) != 1) return -1;
 
-  if (mkdir(arg, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
+  if (mkdir(arg, S_IRWXU | S_IRWXG | S_IRWXO) == -1)
     return error_handler();
   return 0;
 }
