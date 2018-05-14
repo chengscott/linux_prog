@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -80,11 +79,13 @@ void search_device(const char *path, int exact) {
 
 // output in tree view
 int pa[32768];
-int find(int x) { return pa[x] == x ? x : (pa[x] = find(pa[x])); }
+int find(int x) {
+  return (pa[x] == x || pa[x] == -1) ? x : (pa[x] = find(pa[x]));
+}
 
-void tree_view(int pid, int depth) {
+void tree_view(int ppid, int depth) {
   for (size_t i = 0; i < pts; ++i) {
-    if (pt[i].ppid == pid) {
+    if (pt[i].ppid == ppid) {
       for (size_t j = 0; j < depth; ++j) printf(" ");
       printf("`-");
       printf("%s%s\n", pt[i].img, pt[i].img_end + 1);
@@ -118,9 +119,7 @@ int main(int argc, char **argv) {
   FILE *file;
   ttyds = 0;
   file = fopen("/proc/tty/drivers", "r");
-  while (fscanf(file, "%*s %s %*s %*s %*s", tty_drivers[ttyds++]) != EOF)
-    ;
-  --ttyds;
+  while (fscanf(file, "%*s %s %*s %*s %*s", tty_drivers[ttyds]) != EOF) ++ttyds;
   fclose(file);
   ttyns = 1;
   search_device("/dev", 0);
@@ -128,7 +127,7 @@ int main(int argc, char **argv) {
   // retrieve procfs
   const int EUID = geteuid();
   DIR *procfs = opendir("/proc");
-  assert(procfs != NULL);
+  // if (procfs == NULL) return 1;
   struct dirent *proc;
   struct PT *p;
   char path[4096];
@@ -138,7 +137,7 @@ int main(int argc, char **argv) {
     // parse /proc/{pid:d}/status
     sprintf(path, "/proc/%s/status", proc->d_name);
     file = fopen(path, "r");
-    assert(file != NULL);
+    if (file == NULL) continue;
     fscanf(file,
            "%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s"
            "%*s%*s%d%*s%*s%*s%*s%d%*s",
@@ -151,7 +150,10 @@ int main(int argc, char **argv) {
     // parse /proc/{pid:d}/stat
     sprintf(path, "/proc/%s/stat", proc->d_name);
     file = fopen(path, "r");
-    assert(file != NULL);
+    if (file == NULL) {
+      --pts;
+      continue;
+    }
     fscanf(file, "%d (%[^)] %[)] %c %d %d %d %u %*s", &p->pid, p->img,
            p->img_end, &p->St, &p->ppid, &p->pgid, &p->sid, &p->tty);
     fclose(file);
@@ -170,7 +172,10 @@ int main(int argc, char **argv) {
     // parse /proc/{pid:d}/cmdline
     sprintf(path, "/proc/%s/cmdline", proc->d_name);
     fd = open(path, O_RDONLY);
-    assert(fd != -1);
+    if (fd == -1) {
+      --pts;
+      continue;
+    }
     read(fd, p->cmd, 4096);
     close(fd);
     for (size_t i = 0; i < 4096; ++i) {
@@ -187,10 +192,23 @@ int main(int argc, char **argv) {
   if (opt_sort_by > 0)
     qsort((void *)pt, pts, sizeof(struct PT), cmp[opt_sort_by - 1]);
   if (opt_tree_view) {
-    for (size_t i = 0; i < 32768; ++i) pa[i] = i < pts ? pt[i].ppid : i;
+    for (size_t i = 0; i < 32768; ++i) pa[i] = -1;
+    for (size_t i = 0; i < pts; ++i) pa[pt[i].pid] = pt[i].ppid;
     for (size_t i = 0; i < pts; ++i) find(pt[i].pid);
-    // for (size_t i = 0; i < pts; ++i) printf("%d: %d\n", pt[i].pid, pa[i]);
-    tree_view(1, 0);
+    int upa[32768], upas = 0;
+    for (size_t i = 0; i < pts; ++i) {
+      int is_unique = 1, pai = pa[pt[i].pid];
+      for (size_t j = 0; j < upas; ++j) {
+        if (pai == upa[j]) {
+          is_unique = 0;
+          break;
+        }
+      }
+      if (is_unique) {
+        tree_view(pai, 0);
+        upa[upas++] = pai;
+      }
+    }
   } else {
     printf("  pid   uid   gid  ppid  pgid   sid      tty St (img) cmd\n");
     p = pt;
