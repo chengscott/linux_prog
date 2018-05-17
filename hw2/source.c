@@ -26,7 +26,7 @@ int help(void) {
 
 // process table
 struct PT {
-  char St, img[4096], img_end[10], cmd[4096];
+  char St, img[256], img_end[10], cmd[4096];
   int pid, ppid, pgid, sid, uid, gid, tty, ttyno;
 } pt[32768];
 size_t pts = 0;
@@ -44,9 +44,8 @@ int cmp_sid(const void *lhs, const void *rhs) {
 int (*cmp[3])(const void *, const void *) = {cmp_ppid, cmp_pgid, cmp_sid};
 
 // tty
-int tty[4096] = {0};
+int tty[1024] = {0};
 size_t ttyds, ttyns;
-char tty_drivers[32][4096], tty_name[4096][4096] = {"------"};
 
 int starts_with(const char *lhs, const char *rhs) {
   const char *path = lhs, *prefix = rhs;
@@ -56,7 +55,8 @@ int starts_with(const char *lhs, const char *rhs) {
   return 1;
 }
 
-void search_device(const char *path, int exact) {
+void search_device(const char *path, int exact, char tty_name[32][1024],
+                   char tty_drivers[1024][1024]) {
   DIR *devdir = opendir(path);
   if (devdir == NULL) return;
   struct dirent *dev;
@@ -95,6 +95,7 @@ void tree_view(int ppid, int depth) {
 }
 
 int main(int argc, char **argv) {
+  char tty_drivers[32][1024], tty_name[1024][1024] = {"------"};
   // input option
   char opt_all_user = 0,  // Show processes from all users
       opt_term = 1,       // Show processes with associted terminal
@@ -122,8 +123,9 @@ int main(int argc, char **argv) {
   while (fscanf(file, "%*s %s %*s %*s %*s", tty_drivers[ttyds]) != EOF) ++ttyds;
   fclose(file);
   ttyns = 1;
-  search_device("/dev", 0);
-  for (size_t i = 0; i < ttyds; ++i) search_device(tty_drivers[i], 1);
+  search_device("/dev", 0, tty_name, tty_drivers);
+  for (size_t i = 0; i < ttyds; ++i)
+    search_device(tty_drivers[i], 1, tty_name, tty_drivers);
   // retrieve procfs
   const int EUID = geteuid();
   DIR *procfs = opendir("/proc");
