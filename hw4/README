@@ -1,0 +1,10 @@
+# Chat in LAN
+
+## Usage
+
+`make` builds a binary `lanchat`
+
+## Note
+
+- the source interface is chosen by the last available interface (UP)
+- the registered protocol is 0x801 (ETH_P_IP + 1)
